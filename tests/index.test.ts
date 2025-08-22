@@ -16,9 +16,9 @@ test("Incrementing the Data Account", () => {
     svm.addProgramFromFile(contract_keypair.publicKey, "./contractor.so");
 
     const payer = new Keypair();
+    svm.airdrop(payer.publicKey, BigInt(LAMPORTS_PER_SOL));
 
     const data_account = new Keypair();
-    svm.airdrop(payer.publicKey, BigInt(LAMPORTS_PER_SOL));
 
     const blockhash = svm.latestBlockhash();
     const ixs = [
@@ -74,7 +74,7 @@ test("Incrementing the Data Account", () => {
     trier();
 
     const data = svm.getAccount(data_account.publicKey)?.data;
-    console.log(data);
+    // console.log(data);
 
     if (data) {
         expect(data[0]).toBe(16);
