@@ -1,0 +1,37 @@
+/target
+/target
+
+# dependencies (bun install)
+/tests/node_modules/
+
+# output
+/tests/out/
+/tests/dist/
+/tests/*.tgz
+
+# code coverage
+/tests/coverage/
+/tests/*.lcov
+
+# logs
+/tests/logs/
+/tests/*.log
+/tests/report.*.json
+
+# dotenv
+/tests/.env
+/tests/.env.development.local
+/tests/.env.test.local
+/tests/.env.production.local
+/tests/.env.local
+
+# caches
+/tests/.eslintcache
+/tests/.cache/
+/tests/*.tsbuildinfo
+
+# IDE
+/tests/.idea/
+
+/tests/.DS_Store
+/tests/.cursor/
