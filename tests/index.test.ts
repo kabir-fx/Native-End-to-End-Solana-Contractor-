@@ -22,8 +22,8 @@ test("Intialize Data Account", () => {
     
     const data_account = createDataAccount(svm, contractor, payer, lamports);
     
-    svm.addProgramFromFile(contractor, './counter.so');
-    svm.addProgramFromFile(middle_account, './cpi.so');
+    svm.addProgramFromFile(contractor, './counter_program.so');
+    svm.addProgramFromFile(middle_account, './cpi_program.so');
     
     expect(svm.getAccount(data_account.publicKey)?.lamports).toBe(lamports);
     
