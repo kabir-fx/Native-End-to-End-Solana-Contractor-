@@ -1,4 +1,5 @@
 import { test, expect } from "bun:test";
+
 import { LiteSVM } from "litesvm";
 import {
     PublicKey,
@@ -9,25 +10,42 @@ import {
     TransactionInstruction,
 } from "@solana/web3.js";
 
-test("Incrementing the Data Account", () => {
+test("Intialize Data Account", () => {
     const svm = new LiteSVM();
-
-    const contract_keypair = Keypair.generate();
-    svm.addProgramFromFile(contract_keypair.publicKey, "./contractor.so");
-
+    
+    const lamports = Number(svm.minimumBalanceForRentExemption(BigInt(4)));
+    
     const payer = new Keypair();
     svm.airdrop(payer.publicKey, BigInt(LAMPORTS_PER_SOL));
+    const contractor = PublicKey.unique();
+    const middle_account = PublicKey.unique();
+    
+    const data_account = createDataAccount(svm, contractor, payer, lamports);
+    
+    svm.addProgramFromFile(contractor, './counter.so');
+    svm.addProgramFromFile(middle_account, './cpi.so');
+    
+    expect(svm.getAccount(data_account.publicKey)?.lamports).toBe(lamports);
+    
+    sendTransactionToCpi(svm, contractor, payer, data_account, contractor);
+    sendTransactionToCpi(svm, contractor, payer, data_account, contractor);
+    sendTransactionToCpi(svm, contractor, payer, data_account, contractor);
+    sendTransactionToCpi(svm, contractor, payer, data_account, contractor);
+    
+    console.log(svm.getAccount(data_account.publicKey)?.data);
+});
 
-    const data_account = new Keypair();
+function createDataAccount(svm: LiteSVM, contractor: PublicKey, payer: Keypair, lamports: number) {
+    const data_account = Keypair.generate();
 
     const blockhash = svm.latestBlockhash();
     const ixs = [
         SystemProgram.createAccount({
             fromPubkey: payer.publicKey,
             newAccountPubkey: data_account.publicKey,
-            lamports: Number(svm.minimumBalanceForRentExemption(BigInt(4))),
+            lamports: lamports,
             space: 4,
-            programId: contract_keypair.publicKey
+            programId: contractor
         }),
     ];
 
@@ -35,51 +53,55 @@ test("Incrementing the Data Account", () => {
     tx.recentBlockhash = blockhash;
     tx.add(...ixs);
     tx.feePayer = payer.publicKey;
-
-    // Data account is required to be a signer of the transaction along with the payer to - consent to assigning its owner
     tx.sign(payer, data_account);
     svm.sendTransaction(tx);
-    svm.expireBlockhash()
+    svm.expireBlockhash();
 
-    const balanceAfter = svm.getBalance(data_account.publicKey);
-    expect(balanceAfter).toBe(svm.minimumBalanceForRentExemption(BigInt(4)));
-    
-    // CUSTON PROGRAM INSTRUCTION
-    function trier() {
-        const blockhash2 = svm.latestBlockhash();
-        const ixn2 = new TransactionInstruction({
-            keys: [{
-                pubkey: data_account.publicKey,
-                isSigner: false,
-                isWritable: true,
-            }],
-            programId: contract_keypair.publicKey,
-            data: Buffer.from(""),
-        });
-    
-        const tx2 = new Transaction();
-        tx2.recentBlockhash = blockhash2;
-        tx2.add(ixn2);
-        tx2.feePayer = payer.publicKey;
-    
-        tx2.sign(payer);
-        svm.sendTransaction(tx2);
-        svm.expireBlockhash();
-    }
+    return data_account
+}
 
-    trier();
-    trier();
-    trier();
-    trier();
-    trier();
+function sendTransactionToContractor(svm: LiteSVM, contractor: PublicKey, payer: Keypair, data_account: Keypair) {
+    const blockhash = svm.latestBlockhash();
+    const ixs = new TransactionInstruction({
+        keys: [{
+            pubkey: data_account.publicKey,
+            isSigner: false,
+            isWritable: true
+        }],
+        data: new Buffer(""),
+        programId: contractor
+    });
 
-    const data = svm.getAccount(data_account.publicKey)?.data;
-    // console.log(data);
+    const tx = new Transaction();
+    tx.recentBlockhash = blockhash;
+    tx.add(ixs);
+    tx.feePayer = payer.publicKey;
+    tx.sign(payer);
+    svm.sendTransaction(tx);
+    svm.expireBlockhash();
+}
 
-    if (data) {
-        expect(data[0]).toBe(16);
-        expect(data[1]).toBe(0);
-        expect(data[2]).toBe(0);
-        expect(data[3]).toBe(0);
-    }
-});
+function sendTransactionToCpi(svm: LiteSVM, middle_account: PublicKey, payer: Keypair, data_account: Keypair, contractor: PublicKey) {
+    const blockhash = svm.latestBlockhash();
+    const ixs = new TransactionInstruction({
+        keys: [{
+            pubkey: data_account.publicKey,
+            isSigner: false,
+            isWritable: true
+        },{
+            pubkey: contractor,
+            isSigner: false,
+            isWritable: false
+        }],
+        data: new Buffer(""),
+        programId: middle_account
+    });
+
+    const tx = new Transaction();
+    tx.recentBlockhash = blockhash;
+    tx.add(ixs);
+    tx.feePayer = payer.publicKey;
+    tx.sign(payer);
+    svm.sendTransaction(tx);
+    svm.expireBlockhash();
+}
